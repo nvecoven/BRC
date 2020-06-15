@@ -89,5 +89,4 @@ for no_end in no_ends:
                     save_path="./benchmark2_results/", name='ANN_type_' + t + "_noend_" + str(no_end))
 
         model.train(dataset, steps=40000, display_init = 10, func=model.mse, batch_size=100, compiled=False,
-                    val_data=test_dataset, checkpoint_every=100, call_info=100,
-                    max_bptt=100)
+                    val_data=test_dataset, checkpoint_every=100, call_info=100)

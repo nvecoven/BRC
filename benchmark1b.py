@@ -80,5 +80,4 @@ for z in zs:
                     save_path="./benchmark2_results/", name='ANN_type_' + t + "_z_" + str(z))
 
         model.train(dataset, steps=30000, display_init = 10, func=model.mse, batch_size=100, compiled=False,
-                    val_data=test_dataset, checkpoint_every=100, call_info=100,
-                    max_bptt=100)
+                    val_data=test_dataset, checkpoint_every=100, call_info=100)
