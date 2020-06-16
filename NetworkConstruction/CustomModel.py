@@ -1,13 +1,11 @@
 import tensorflow as tf
-import numpy as np
 import datetime
-import json
 import pickle
 import os
 import time
 
 class CustomModel():
-    def __init__(self, save_path, load = False, name = None, params = None, not_sequential_data = None, **kwargs):
+    def __init__(self, save_path, load = False, name = None, params = None, **kwargs):
         self.variables_d = {}
         self.variables = []
         self.queue_load_weights = {}
@@ -63,7 +61,7 @@ class CustomModel():
         self.checkpoint.restore(tf.train.latest_checkpoint(path + self.to_pickle['name'] + "/params/"))
         self.to_pickle = pickle.load(open(path + self.to_pickle['name'] + "/infos", "rb"))
 
-    def get_gradients(self, samples, func, variables_string = None, variables_func =  None, compiled = True,
+    def get_gradients(self, samples, func, variables_string = None, variables_func =  None,
                       grad_post_process_func = None, require_init = False, **kwargs):
         if grad_post_process_func is None:
             grad_post_process_func = self.post_process_gradients
@@ -96,7 +94,7 @@ class CustomModel():
     def process_sample(self, sample):
         return sample
 
-    def evaluate(self, input_data, func, compiled = True, batch_size = 50, complete_unroll = True, process_function = None,
+    def evaluate(self, input_data, func, batch_size = 50, process_function = None,
                  **kwargs):
         if process_function is None:
             process_function = self.process_sample

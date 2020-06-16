@@ -1,16 +1,13 @@
-import sys
 from NetworkConstruction.CustomSubmodels.RNNUnrollSubmodel import RNNUnrollSubmodel
 from NetworkConstruction.CustomModel import CustomModel
-from NetworkConstruction.CustomLayers import GruLayer, BistableRecurrentCellLayer, NeuromodulatedBistableRecurrentCellLayer, LSTMLayer, BistableRecurrentCellLayer
+from NetworkConstruction.CustomLayers import GruLayer, NeuromodulatedBistableRecurrentCellLayer, LSTMLayer, BistableRecurrentCellLayer
 import tensorflow as tf
-import matplotlib.pyplot as plt
 import numpy as np
-import pickle
 
 tf.config.experimental.set_visible_devices([], 'GPU')
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
-    try:          # Currently, memory growth needs to be the same across GPUs
+    try:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
             logical_gpus = tf.config.experimental.list_logical_devices('GPU')
@@ -45,7 +42,7 @@ def generate_sample(n):
     chain = np.concatenate([[true_n], np.random.randn(n-1)])
     return chain, true_n
 
-zs = [5, 50, 100, 300, 600]
+zs = [5, 300, 600]
 
 for z in zs:
     for t, c in zip(["nBRC", "BRC", "GRU", "LSTM"],

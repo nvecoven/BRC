@@ -1,8 +1,6 @@
-import numpy as np
 import tensorflow as tf
 from ..CustomSubmodel import CustomSubmodel
 from ..CustomLayers.DenseLayer import DenseLayer
-from ..CustomLayers.GruLayer import GruLayer
 
 class FFSubmodel(CustomSubmodel):
     def __init__(self, model, **kwargs):
