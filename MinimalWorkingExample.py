@@ -131,6 +131,6 @@ for z in zs:
         model.add(rnn)
         model.add(tf.keras.layers.Dense(1))
         model.compile(optimizer="Adam", loss="mse")
-        model.fit(x=dataset['input'], y=dataset['output'], epochs = 5, batch_size=100,
+        model.fit(x=dataset['input'], y=dataset['output'], epochs = 60, batch_size=100,
                   validation_data=(test_dataset['input'], test_dataset['output']),
                   verbose = True)
