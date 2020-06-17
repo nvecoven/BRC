@@ -23,7 +23,7 @@ class NeuromodulatedBistableRecurrentCellLayer(tf.keras.layers.Layer):
     def __init__(self, output_dim, var_list = None, **kwargs):
         self.output_dim = output_dim
         self.state_size = output_dim
-        super(NeuromodulatedBistableRecurrentCellLayer, self).__init__(output_dim, model, var_list, **kwargs)
+        super(NeuromodulatedBistableRecurrentCellLayer, self).__init__(output_dim, var_list, **kwargs)
 
     def build(self, input_shape):
         self.kernelz = self.add_weight(name="kz", shape=(input_shape[1], self.output_dim), dtype=tf.float32,
@@ -60,7 +60,7 @@ class BistableRecurrentCellLayer(tf.keras.layers.Layer):
     def __init__(self, output_dim, var_list = None, **kwargs):
         self.output_dim = output_dim
         self.state_size = output_dim
-        super(BistableRecurrentCellLayer, self).__init__(output_dim, model, var_list, **kwargs)
+        super(BistableRecurrentCellLayer, self).__init__(output_dim, var_list, **kwargs)
 
     def build(self, input_shape):
         self.kernelz = self.add_weight(name="kz", shape=(input_shape[1], self.output_dim), dtype=tf.float32,
