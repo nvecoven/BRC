@@ -1,7 +1,9 @@
-# Minimal example for comparing nBRCs and BRCs to GRUs on benchmark requiring long memory. The network are built with
-# the most simple Keras Sequential model. The only difference lies in the recurrent cell definition.
+# Minimal example for comparing nBRCs and BRCs to GRUs on benchmark 2. The network are built with
+# the most simple Keras Sequential model. The only difference with standard RNNs lies in the recurrent cell definition.
 # Note that the hyper-parameters used here might differ to those used in the paper, thus results might not be exactly
-# the same. However this does not influence the conclusion and the observations in any way.
+# the same. However this should not influence the conclusion and the observations in any way.
+
+# Also note that on this benchmark, some networks need a few epochs before seeing a significant loss decrease.
 
 import tensorflow as tf
 import numpy as np
@@ -20,10 +22,10 @@ if gpus:
 
 ##### DEFINE THE NBRC ###########
 class NeuromodulatedBistableRecurrentCellLayer(tf.keras.layers.Layer):
-    def __init__(self, output_dim, var_list = None, **kwargs):
+    def __init__(self, output_dim, **kwargs):
         self.output_dim = output_dim
         self.state_size = output_dim
-        super(NeuromodulatedBistableRecurrentCellLayer, self).__init__(output_dim, model, var_list, **kwargs)
+        super(NeuromodulatedBistableRecurrentCellLayer, self).__init__(output_dim, **kwargs)
 
     def build(self, input_shape):
         self.kernelz = self.add_weight(name="kz", shape=(input_shape[1], self.output_dim), dtype=tf.float32,
@@ -57,10 +59,10 @@ class NeuromodulatedBistableRecurrentCellLayer(tf.keras.layers.Layer):
 
 ############ DEFINE THE BRC #################
 class BistableRecurrentCellLayer(tf.keras.layers.Layer):
-    def __init__(self, output_dim, var_list = None, **kwargs):
+    def __init__(self, output_dim, **kwargs):
         self.output_dim = output_dim
         self.state_size = output_dim
-        super(BistableRecurrentCellLayer, self).__init__(output_dim, model, var_list, **kwargs)
+        super(BistableRecurrentCellLayer, self).__init__(output_dim, **kwargs)
 
     def build(self, input_shape):
         self.kernelz = self.add_weight(name="kz", shape=(input_shape[1], self.output_dim), dtype=tf.float32,
@@ -90,19 +92,31 @@ class BistableRecurrentCellLayer(tf.keras.layers.Layer):
     def get_initial_state(self, inputs=None, batch_size=None, dtype=tf.float32):
         return [tf.zeros(shape=(batch_size, self.output_dim), dtype=dtype)]
 
-###### DEFINE SAMPLES AS FOR THE COPY INPUT BENCHMARK #######
-def generate_sample(n):
-    true_n = np.random.randn()
-    chain = np.concatenate([[true_n], np.random.randn(n-1)])
-    return chain, true_n
+###### DEFINE SAMPLES AS FOR THE DENOISING BENCHMARK #######
+def generate_sample(n, data, no_end = 0):
+    inp = []
+    out = []
+    choice = np.random.choice(n - no_end, data, replace = False)
+    for i in range(n):
+        d = np.random.randn()
+        if i in choice:
+            inp.append([d, 0])
+            out.append(d)
+        else:
+            inp.append([d, -1])
+    inp.append([0.0, 1])
+    return inp, out
 
-zs = [5, 300, 600]
-for z in zs:
+z = 400
+no_ends = [0, 200]
+n_data = 5
+
+for no_end in no_ends:
     for t, c in zip(["GRU", "nBRC", "BRC"],
                 [tf.keras.layers.GRUCell,
                  NeuromodulatedBistableRecurrentCellLayer,
                  BistableRecurrentCellLayer]):
-        # Lower the number of test samples with respect to the paper, for faster training.
+        # Lower the number of test samples with respect to the paper, for faster evaluation.
         test_nbr = 5000
         model = None
         if not model is None:
@@ -110,27 +124,32 @@ for z in zs:
         inputs = []
         outputs = []
         for i in range(50000):
-            inp, out = generate_sample(z)
+            inp, out = generate_sample(z, n_data, no_end)
             inputs.append(inp)
             outputs.append(out)
 
         inputs = np.array(inputs)
         outputs = np.array(outputs)
 
-        dataset = {'input': np.expand_dims(inputs, axis=2).astype(np.float32)[:-test_nbr],
-                   'output': np.expand_dims(outputs, axis=1).astype(np.float32)[:-test_nbr]}
+        dataset = {'input': inputs.astype(np.float32)[:-test_nbr],
+                   'output': outputs.astype(np.float32)[:-test_nbr]}
 
-        test_dataset = {'input':np.expand_dims(inputs, axis = 2).astype(np.float32)[-test_nbr:],
-                        'output':np.expand_dims(outputs, axis = 1).astype(np.float32)[-test_nbr:]}
+        test_dataset = {'input':inputs.astype(np.float32)[-test_nbr:],
+                        'output':outputs.astype(np.float32)[-test_nbr:]}
 
-        print("Training network with cells of type ", t, " with a lag of ", str(z), " time-steps")
+        print("Training network with cells of type ", t, " with a lag of ", str(z), " time-steps and no-end set to ", str(no_end))
         print("---------------------")
         model = tf.keras.Sequential()
-        recurrent_layers = [c(el) for el in [100, 100]]
+        recurrent_layers = [c(el) for el in [100, 100, 100, 100]]
         rnn = tf.keras.layers.RNN(recurrent_layers)
         model.add(rnn)
-        model.add(tf.keras.layers.Dense(1))
+        model.add(tf.keras.layers.Dense(n_data))
         model.compile(optimizer="Adam", loss="mse")
-        model.fit(x=dataset['input'], y=dataset['output'], epochs = 60, batch_size=100,
-                  validation_data=(test_dataset['input'], test_dataset['output']),
-                  verbose = True)
+        for e in range(80):
+            model.fit(x=dataset['input'], y=dataset['output'], epochs = 1, batch_size=100,
+                      validation_data=(test_dataset['input'], test_dataset['output']),
+                      verbose = True)
+            mse = model.evaluate(x=test_dataset['input'],y=test_dataset['output'])
+            # Allows for faster run time. Comment for full training
+            if mse < 0.1:
+                break
