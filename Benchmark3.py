@@ -113,8 +113,8 @@ for z in zs:
         if not model is None:
             del (model)
 
-        dataset = {'input': tf.cast(x_train, tf.float32) / 255., 'groundtruth': tf.cast(y_train, tf.float32)}
-        test_dataset = {'input': tf.cast(x_test, tf.float32) / 255., 'groundtruth': tf.cast(y_test, tf.float32)}
+        dataset = {'input': tf.cast(x_train, tf.float32) / 255. - 0.5, 'groundtruth': tf.cast(y_train, tf.float32)}
+        test_dataset = {'input': tf.cast(x_test, tf.float32) / 255. - 0.5, 'groundtruth': tf.cast(y_test, tf.float32)}
 
         print("Training network with cells of type ", t, " with ", str(z), " black pixels appended")
         print("---------------------")
