@@ -3,13 +3,16 @@
 # Note that the hyper-parameters used here might differ to those used in the paper for simplicity, thus results might not be exactly
 # the same. However this should not influence the conclusion and the observations in any way.
 
-# Note that for this benchmark, some networks might need a few epochs to start learning.
+# Note that for this benchmark, the architecture size has been reduced to allow for much faster training.
+# Also, with this learning rate, there can be some numerical instabilities by unrolling such long time-series
+# this is solved by ignoring too big gradients.
+
 import tensorflow as tf
 import numpy as np
 import math
 
 # Uncomment to run on CPU
-# tf.config.experimental.set_visible_devices([], 'GPU')
+tf.config.experimental.set_visible_devices([], 'GPU')
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
@@ -92,6 +95,27 @@ class BistableRecurrentCellLayer(tf.keras.layers.Layer):
     def get_initial_state(self, inputs=None, batch_size=None, dtype=tf.float32):
         return [tf.zeros(shape=(batch_size, self.output_dim), dtype=dtype)]
 
+###
+
+class MNISTModel(tf.keras.Sequential):
+    def train_step(self, data):
+        x, y = data
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)
+            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+        
+        trainable_vars = self.trainable_variables
+        gradients = tape.gradient(loss, trainable_vars)
+        update = tf.constant(True)
+        for g in gradients:
+            if tf.reduce_any(tf.math.is_nan(g)) or tf.reduce_any(tf.math.is_inf(g)):
+                update = tf.constant(False)
+        if update:
+            self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+        
+        self.compiled_metrics.update_state(y, y_pred)
+        return {m.name: m.result() for m in self.metrics}
+    
 ###### DEFINE SAMPLES AS FOR THE MNIST BENCHMARK #######
 (x_train_i, y_train_i), (x_test_i, y_test_i) = tf.keras.datasets.mnist.load_data(path='mnist.npz')
 
@@ -100,47 +124,37 @@ x_test_i = np.reshape(x_test_i, [x_test_i.shape[0], -1, 1])
 y_train = tf.one_hot(y_train_i, 10)
 y_test = tf.one_hot(y_test_i, 10)
 
-zs = [0, 300]
+zs = [300]
 for z in zs:
     x_train = np.concatenate([x_train_i, np.zeros((x_train_i.shape[0], z, x_train_i.shape[2]))], axis=1)
     x_test = np.concatenate([x_test_i, np.zeros((x_test_i.shape[0], z, x_test_i.shape[2]))], axis=1)
-    for t, c in zip(["nBRC", "BRC", "GRU", "LSTM"],
-                    [NeuromodulatedBistableRecurrentCellLayer,
-                     BistableRecurrentCellLayer,
-                     tf.keras.layers.GRUCell,
-                     tf.keras.layers.LSTMCell]):
+    for t, c in zip(["GRU", "nBRC", "BRC"],
+                    [tf.keras.layers.LSTMCell,
+                     NeuromodulatedBistableRecurrentCellLayer,
+                     BistableRecurrentCellLayer]):
         model = None
         if not model is None:
             del (model)
 
-        dataset = {'input': tf.cast(x_train, tf.float32) / 255. - 0.5, 'groundtruth': tf.cast(y_train, tf.float32)}
-        test_dataset = {'input': tf.cast(x_test, tf.float32) / 255. - 0.5, 'groundtruth': tf.cast(y_test, tf.float32)}
+        dataset = {'input': tf.cast(x_train, tf.float32) / 255., 'groundtruth': tf.cast(y_train, tf.float32)}
+        test_dataset = {'input': tf.cast(x_test, tf.float32) / 255., 'groundtruth': tf.cast(y_test, tf.float32)}
 
         print("Training network with cells of type ", t, " with ", str(z), " black pixels appended")
         print("---------------------")
-        model = tf.keras.Sequential()
-        recurrent_layers = [c(el) for el in [100, 100, 100, 100]]
+        model = MNISTModel()
+        recurrent_layers = [c(el) for el in [300, 300]]
         rnn = tf.keras.layers.RNN(recurrent_layers)
         model.add(rnn)
         model.add(tf.keras.layers.Dense(10, activation="softmax"))
-        # Add a learning rate decay for numerical stability. Note that this decay might be too aggressive for BRC and nBRC
-        # to reach very high accuracy in only 50 epochs. Can be diminished for faster learning.
-        def step_decay(epoch):
-            initial_lrate = 0.001
-            drop = 0.5
-            epochs_drop = 10.0
-            lrate = initial_lrate * math.pow(drop,
-                                             math.floor((1+epoch)/epochs_drop))
-            return lrate
-        lr_schedule = tf.keras.callbacks.LearningRateScheduler(step_decay)
         model.compile(loss='categorical_crossentropy',
-                      optimizer=tf.keras.optimizers.Adam(),
+                      optimizer=tf.keras.optimizers.Adam(learning_rate = 0.001),
                       metrics=['accuracy'])
-        for e in range(50):
-            model.fit(x=dataset['input'], y=dataset['groundtruth'], epochs = 1, batch_size=100,
+        
+        for e in range(20):
+            model.fit(x=dataset['input'], y=dataset['groundtruth'], epochs = e+1, batch_size=300,
                       validation_data=(test_dataset['input'], test_dataset['groundtruth']),
-                      verbose = True, callbacks=[lr_schedule])
+                      verbose = True, initial_epoch = e)
             accuracy = model.evaluate(x=test_dataset['input'],y=test_dataset['groundtruth'])[1]
             # Allows for faster runtimes, comment for full training.
-            if accuracy > 0.9:
+            if accuracy > 0.7:
                 break

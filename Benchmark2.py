@@ -4,6 +4,7 @@
 # the same. However this should not influence the conclusion and the observations in any way.
 
 # Also note that on this benchmark, some networks need a few epochs before seeing a significant loss decrease.
+# You can have almost similar results, and a much faster training time by reducing the size of the architecture
 
 import tensorflow as tf
 import numpy as np
