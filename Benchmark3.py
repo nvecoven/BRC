@@ -124,12 +124,12 @@ x_test_i = np.reshape(x_test_i, [x_test_i.shape[0], -1, 1])
 y_train = tf.one_hot(y_train_i, 10)
 y_test = tf.one_hot(y_test_i, 10)
 
-zs = [300]
+zs = [0, 300]
 for z in zs:
     x_train = np.concatenate([x_train_i, np.zeros((x_train_i.shape[0], z, x_train_i.shape[2]))], axis=1)
     x_test = np.concatenate([x_test_i, np.zeros((x_test_i.shape[0], z, x_test_i.shape[2]))], axis=1)
     for t, c in zip(["GRU", "nBRC", "BRC"],
-                    [tf.keras.layers.LSTMCell,
+                    [tf.keras.layers.GRUCell,
                      NeuromodulatedBistableRecurrentCellLayer,
                      BistableRecurrentCellLayer]):
         model = None
